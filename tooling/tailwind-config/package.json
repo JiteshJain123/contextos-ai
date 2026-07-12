@@ -1,0 +1,19 @@
+{
+  "name": "@contextos-ai/tailwind-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared Tailwind v4 design tokens and PostCSS preset",
+  "exports": {
+    "./base.css": "./styles/base.css",
+    "./postcss": "./postcss.config.mjs"
+  },
+  "files": [
+    "styles/",
+    "postcss.config.mjs"
+  ],
+  "dependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "tailwindcss": "^4.3.0"
+  }
+}

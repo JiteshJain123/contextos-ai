@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Node",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": ["node"],
+
+    // Inherit module + moduleResolution from base.json (ESNext + Bundler).
+    // tsc here is for type-checking only; the actual JS is produced by tsup
+    // (esbuild-based bundler) which handles either resolution mode and
+    // resolves .ts source from workspace packages without .js extensions —
+    // matching how Turbopack treats the same packages from the Next.js app.
+    "noEmit": true
+  }
+}

@@ -1,0 +1,16 @@
+export { taskApi } from "./api/task.api";
+export { AiTaskBreakdownDialog } from "./components/ai-task-breakdown-dialog";
+export { ProjectMetricsBar } from "./components/project-metrics-bar";
+export { CreateTaskDialog } from "./components/create-task-dialog";
+export { DueDateDisplay } from "./components/due-date-display";
+export { EditTaskDialog } from "./components/edit-task-dialog";
+export { KanbanBoard } from "./components/kanban-board";
+export { KanbanColumn } from "./components/kanban-column";
+export { PriorityBadge } from "./components/priority-badge";
+export { TaskCard } from "./components/task-card";
+export { useCreateTask } from "./hooks/use-create-task";
+export { useDeleteTask } from "./hooks/use-delete-task";
+export { useMoveTask } from "./hooks/use-move-task";
+export { useTasks } from "./hooks/use-tasks";
+export { useUpdateTask } from "./hooks/use-update-task";
+export { TASK_STATUSES, statusMeta } from "./lib/status";

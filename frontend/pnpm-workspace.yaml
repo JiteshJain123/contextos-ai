@@ -1,0 +1,6 @@
+# Standalone project — this file marks the folder as its own pnpm root
+# and approves postinstall build scripts for the listed packages.
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true

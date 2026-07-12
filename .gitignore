@@ -1,0 +1,70 @@
+# ---------- Dependencies ----------
+node_modules/
+.pnpm-store/
+
+# ---------- Build outputs ----------
+dist/
+build/
+out/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# ---------- Env / secrets ----------
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+# Keep template
+!.env.example
+
+# ---------- Logs ----------
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ---------- Coverage / test artifacts ----------
+coverage/
+.nyc_output/
+*.lcov
+
+# ---------- IDE / editor ----------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Runtime data ----------
+# User-uploaded documents (served by the API, referenced by DB records)
+backend/uploads/
+
+# ---------- Prisma generated ----------
+# (Prisma client lives in node_modules; nothing else to ignore by default)
+
+# ---------- Misc ----------
+*.pid
+*.seed
+*.pid.lock
+.cache/
+.parcel-cache/
+.eslintcache
+.stylelintcache
+.prettiercache
+
+# Claude Code local settings
+.claude/
