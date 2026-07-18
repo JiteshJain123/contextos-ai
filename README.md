@@ -1,5 +1,9 @@
 # ContextOS AI
 
+🔗 **Live Demo:** [https://contextos-ai.vercel.app](https://contextos-ai.vercel.app) &nbsp;|&nbsp; 📦 **GitHub:** [https://github.com/JiteshJain123/contextos-ai](https://github.com/JiteshJain123/contextos-ai)
+
+---
+
 **An AI-powered project management workspace that actually understands your projects.**
 
 ContextOS AI combines a full project-management tool (projects, Kanban boards, calendar, timeline)
@@ -179,3 +183,8 @@ The two apps deploy independently:
 - **Frontend** → Vercel (set the project root to `frontend/`).
 - **Backend** → Railway / Render / any Node host (set the root to `backend/`, build with `pnpm build`, start with `node dist/index.js`, and run `pnpm db:deploy` for migrations).
 - **Database** → any managed PostgreSQL (Neon, Supabase, Railway, etc.).
+
+| Service | URL |
+|---|---|
+| Frontend (Vercel) | https://contextos-ai.vercel.app |
+| GitHub Repository | https://github.com/JiteshJain123/contextos-ai |
