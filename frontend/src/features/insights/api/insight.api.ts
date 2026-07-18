@@ -1,6 +1,6 @@
 import type { InsightDTO, InsightStreamEvent, InsightType } from "@/lib/validators/insight";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -29,6 +29,7 @@ export const insightApi = {
     force = false,
   ): AsyncGenerator<InsightStreamEvent, void, undefined> {
     const qs = force ? "?force=true" : "";
+    const token = await getAuthToken();
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/insights/${type}/generate${qs}`,
       {
@@ -36,8 +37,8 @@ export const insightApi = {
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
       },
     );
 

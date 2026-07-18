@@ -10,7 +10,7 @@ import type {
   TaskComplexity,
 } from "@/lib/validators/task";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -68,12 +68,16 @@ export const taskApi = {
     projectId: string,
     goal: string,
   ): AsyncGenerator<BreakdownEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/conversations/breakdown-tasks`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ goal }),
       },
     );

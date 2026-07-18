@@ -43,6 +43,18 @@ export function setTokenGetter(fn: TokenGetter) {
   tokenGetterReady?.();
 }
 
+/** Returns the raw Bearer token string for SSE / raw fetch calls. */
+export async function getAuthToken(): Promise<string | null> {
+  if (!tokenGetter && typeof window !== "undefined") {
+    await Promise.race([
+      tokenGetterPromise,
+      new Promise((resolve) => setTimeout(resolve, 5000)),
+    ]);
+  }
+  if (!tokenGetter) return null;
+  return tokenGetter();
+}
+
 /**
  * Waits for ClerkTokenSync to register the token getter before the first
  * request fires. Without this, queries that mount before Clerk loads go out

@@ -6,7 +6,7 @@ import type {
 } from "@/lib/validators/document";
 import type { TaskDTO } from "@/lib/validators/task";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -32,13 +32,16 @@ export const documentApi = {
     const formData = new FormData();
     formData.append("file", file);
 
+    const token = await getAuthToken();
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/documents`,
       {
         method: "POST",
-        credentials: "include",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          // No Content-Type — browser sets multipart/form-data + boundary automatically
+        },
         body: formData,
-        // No Content-Type header — browser sets multipart/form-data + boundary automatically
       },
     );
 
@@ -63,6 +66,7 @@ export const documentApi = {
     projectId: string,
     docId: string,
   ): AsyncGenerator<DocumentPlanStreamEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/documents/${docId}/generate-plan`,
       {
@@ -70,8 +74,8 @@ export const documentApi = {
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
       },
     );
 
@@ -118,6 +122,7 @@ export const documentApi = {
     projectId: string,
     docId: string,
   ): AsyncGenerator<DocumentStreamEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(
       `${API_BASE}/projects/${projectId}/documents/${docId}/analyze`,
       {
@@ -125,8 +130,8 @@ export const documentApi = {
         headers: {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        credentials: "include",
       },
     );
 

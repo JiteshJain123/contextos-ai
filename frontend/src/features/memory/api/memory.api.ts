@@ -4,7 +4,7 @@ import type {
   RagContext,
 } from "@/lib/validators/memory";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -26,13 +26,14 @@ export const memoryApi = {
   // ── Rebuild (SSE) ─────────────────────────────────────────────────────────
 
   async *rebuild(projectId: string): AsyncGenerator<MemoryStreamEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE}/projects/${projectId}/memory/rebuild`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      credentials: "include",
     });
 
     if (!response.ok) {

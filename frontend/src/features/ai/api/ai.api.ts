@@ -7,7 +7,7 @@ import type {
 } from "@/lib/validators/ai";
 import type { ActionPayload, ActionResult } from "@/lib/validators/ai-actions";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -56,13 +56,14 @@ export const aiApi = {
     conversationId: string,
     content: string,
   ): AsyncGenerator<StreamEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE}/conversations/${conversationId}/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      credentials: "include",
       body: JSON.stringify({ content }),
     });
 

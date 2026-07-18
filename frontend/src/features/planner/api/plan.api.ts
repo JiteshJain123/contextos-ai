@@ -1,6 +1,6 @@
 import type { PlanDTO, PlanStreamEvent, UpdatePlanInput } from "@/lib/validators/plan";
 
-import { api } from "@/lib/api-client";
+import { api, getAuthToken } from "@/lib/api-client";
 import { clientEnv } from "@/env/client";
 
 const API_BASE = `${clientEnv.NEXT_PUBLIC_API_URL}/api/v1`;
@@ -24,13 +24,14 @@ export const planApi = {
     projectId: string,
     goal: string,
   ): AsyncGenerator<PlanStreamEvent, void, undefined> {
+    const token = await getAuthToken();
     const response = await fetch(`${API_BASE}/projects/${projectId}/plan/generate`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      credentials: "include",
       body: JSON.stringify({ goal }),
     });
 
