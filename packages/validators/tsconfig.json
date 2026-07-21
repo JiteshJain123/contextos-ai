@@ -1,5 +1,0 @@
-{
-  "extends": "@contextos-ai/tsconfig/base.json",
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
-}
