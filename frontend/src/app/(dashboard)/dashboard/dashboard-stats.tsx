@@ -12,8 +12,21 @@ import {
   LayoutList,
   ListChecks,
   RefreshCw,
+  TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { cn } from "@/lib/cn";
 import { useDashboardStats, type RecentTask } from "@/features/project/hooks/use-dashboard-stats";
@@ -23,6 +36,29 @@ import {
   type AiInsight,
 } from "@/features/project/lib/derive-insights";
 
+// ── Chart palette (literal hex — matches status/priority colors app-wide) ─────
+
+const STATUS_COLORS: Record<string, string> = {
+  TODO: "#94a3b8",
+  IN_PROGRESS: "#3b82f6",
+  REVIEW: "#8b5cf6",
+  DONE: "#10b981",
+};
+
+const PRIORITY_META = [
+  { key: "URGENT", label: "Urgent", bar: "bg-red-500", chip: "text-red-500" },
+  { key: "HIGH", label: "High", bar: "bg-amber-500", chip: "text-amber-500" },
+  { key: "MEDIUM", label: "Medium", bar: "bg-blue-500", chip: "text-blue-500" },
+  { key: "LOW", label: "Low", bar: "bg-slate-400", chip: "text-slate-400" },
+] as const;
+
+const STATUS_LABELS: Record<string, string> = {
+  TODO: "To Do",
+  IN_PROGRESS: "In Progress",
+  REVIEW: "In Review",
+  DONE: "Done",
+};
+
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
 function StatCard({
@@ -30,6 +66,7 @@ function StatCard({
   value,
   sub,
   icon: Icon,
+  gradient,
   isLoading,
   href,
 }: {
@@ -37,26 +74,36 @@ function StatCard({
   value: string | number;
   sub?: string;
   icon: React.ElementType;
+  gradient: string;
   isLoading: boolean;
   href?: string;
 }) {
   const inner = (
     <div
       className={cn(
-        "flex flex-col gap-2 rounded-lg border border-border bg-card p-4",
-        href && "transition-colors hover:bg-muted/40",
+        "group flex flex-col gap-3 rounded-xl border border-border bg-card p-4 transition-all duration-200",
+        href && "hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5",
       )}
     >
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Icon className="size-4" aria-hidden="true" />
-        <span className="text-xs font-medium">{label}</span>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-muted-foreground">{label}</span>
+        <span
+          className={cn(
+            "flex size-8 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm",
+            gradient,
+          )}
+        >
+          <Icon className="size-4 text-white" aria-hidden="true" />
+        </span>
       </div>
       {isLoading ? (
-        <div className="h-7 w-12 animate-pulse rounded bg-muted" />
+        <div className="h-8 w-14 animate-pulse rounded bg-muted" />
       ) : (
-        <p className="text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+        <div>
+          <p className="text-2xl font-bold tracking-tight tabular-nums">{value}</p>
+          {sub && <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p>}
+        </div>
       )}
-      {sub && !isLoading && <p className="text-xs text-muted-foreground">{sub}</p>}
     </div>
   );
 
@@ -130,6 +177,7 @@ export function DashboardStats() {
             label="Projects"
             value={stats.projectCount}
             icon={FolderKanban}
+            gradient="from-primary to-blue-600"
             isLoading={isLoading}
             href="/projects"
           />
@@ -137,6 +185,7 @@ export function DashboardStats() {
             label="Total tasks"
             value={totalTasks}
             icon={LayoutList}
+            gradient="from-violet-500 to-purple-600"
             isLoading={isLoading}
           />
           <StatCard
@@ -144,15 +193,26 @@ export function DashboardStats() {
             value={stats.tasksByStatus.DONE}
             sub={totalTasks > 0 ? `${completionPct}% of all tasks` : undefined}
             icon={CheckCircle2}
+            gradient="from-emerald-500 to-teal-600"
             isLoading={isLoading}
           />
           <StatCard
             label="Overdue"
             value={stats.overdueCount}
             icon={stats.overdueCount > 0 ? AlertCircle : CheckCircle2}
+            gradient={
+              stats.overdueCount > 0 ? "from-red-500 to-rose-600" : "from-slate-400 to-slate-500"
+            }
             isLoading={isLoading}
           />
         </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <CompletionTrendChart trend={stats.completionTrend} isLoading={isLoading} />
+        <StatusDonut tasksByStatus={stats.tasksByStatus} totalTasks={totalTasks} isLoading={isLoading} />
+        <PriorityBars tasksByPriority={stats.tasksByPriority} isLoading={isLoading} />
       </div>
 
       {/* Insights + Recent work */}
@@ -160,6 +220,207 @@ export function DashboardStats() {
         <InsightsList insights={insights} isLoading={isLoading} />
         <RecentWorkList tasks={stats.recentTasks ?? []} isLoading={isLoading} />
       </div>
+    </div>
+  );
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+
+function ChartCard({
+  title,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  icon: React.ElementType;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center gap-2">
+        <Icon className="size-4 text-primary" aria-hidden="true" />
+        <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+      </div>
+      <div className="mt-3 flex-1">{children}</div>
+    </div>
+  );
+}
+
+const TOOLTIP_STYLE = {
+  backgroundColor: "var(--popover)",
+  border: "1px solid var(--border)",
+  borderRadius: "8px",
+  fontSize: "12px",
+  color: "var(--popover-foreground)",
+} as const;
+
+function ChartSkeleton() {
+  return <div className="h-44 w-full animate-pulse rounded-lg bg-muted/60" />;
+}
+
+function CompletionTrendChart({
+  trend,
+  isLoading,
+}: {
+  trend: Array<{ label: string; completed: number }>;
+  isLoading: boolean;
+}) {
+  return (
+    <ChartCard title="Completion trend" icon={TrendingUp}>
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : trend.length === 0 ? (
+        <ChartEmpty message="Complete tasks to see your trend" />
+      ) : (
+        <ResponsiveContainer width="100%" height={176}>
+          <AreaChart data={trend} margin={{ top: 6, right: 6, left: -22, bottom: 0 }}>
+            <defs>
+              <linearGradient id="trendFill" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#6366f1" stopOpacity={0.35} />
+                <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+            <XAxis
+              dataKey="label"
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              allowDecimals={false}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip contentStyle={TOOLTIP_STYLE} cursor={{ stroke: "var(--border)" }} />
+            <Area
+              type="monotone"
+              dataKey="completed"
+              name="Completed"
+              stroke="#6366f1"
+              strokeWidth={2}
+              fill="url(#trendFill)"
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
+    </ChartCard>
+  );
+}
+
+function StatusDonut({
+  tasksByStatus,
+  totalTasks,
+  isLoading,
+}: {
+  tasksByStatus: Record<string, number>;
+  totalTasks: number;
+  isLoading: boolean;
+}) {
+  const chartData = Object.entries(tasksByStatus)
+    .map(([status, count]) => ({
+      name: STATUS_LABELS[status] ?? status,
+      value: count,
+      color: STATUS_COLORS[status] ?? "#94a3b8",
+    }))
+    .filter((d) => d.value > 0);
+
+  return (
+    <ChartCard title="Tasks by status" icon={Circle}>
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : totalTasks === 0 ? (
+        <ChartEmpty message="Add tasks to see the breakdown" />
+      ) : (
+        <div className="flex items-center gap-2">
+          <div className="relative h-44 w-1/2 min-w-0">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Tooltip contentStyle={TOOLTIP_STYLE} />
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius="62%"
+                  outerRadius="90%"
+                  paddingAngle={3}
+                  strokeWidth={0}
+                >
+                  {chartData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-bold tabular-nums">{totalTasks}</span>
+              <span className="text-[10px] text-muted-foreground">tasks</span>
+            </div>
+          </div>
+          <ul className="flex w-1/2 flex-col gap-2">
+            {chartData.map((d) => (
+              <li key={d.name} className="flex items-center gap-2 text-xs">
+                <span
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: d.color }}
+                />
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">{d.name}</span>
+                <span className="font-semibold tabular-nums">{d.value}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </ChartCard>
+  );
+}
+
+function PriorityBars({
+  tasksByPriority,
+  isLoading,
+}: {
+  tasksByPriority: Record<string, number>;
+  isLoading: boolean;
+}) {
+  const max = Math.max(1, ...Object.values(tasksByPriority));
+  const total = Object.values(tasksByPriority).reduce((a, b) => a + b, 0);
+
+  return (
+    <ChartCard title="Tasks by priority" icon={ListChecks}>
+      {isLoading ? (
+        <ChartSkeleton />
+      ) : total === 0 ? (
+        <ChartEmpty message="Add tasks to see priorities" />
+      ) : (
+        <ul className="flex h-44 flex-col justify-center gap-4">
+          {PRIORITY_META.map(({ key, label, bar }) => {
+            const count = tasksByPriority[key] ?? 0;
+            return (
+              <li key={key}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-medium">{label}</span>
+                  <span className="tabular-nums text-muted-foreground">{count}</span>
+                </div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn("h-full rounded-full transition-all duration-500", bar)}
+                    style={{ width: `${Math.round((count / max) * 100)}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </ChartCard>
+  );
+}
+
+function ChartEmpty({ message }: { message: string }) {
+  return (
+    <div className="flex h-44 items-center justify-center text-center text-xs text-muted-foreground">
+      {message}
     </div>
   );
 }
@@ -249,7 +510,7 @@ function InsightsList({ insights, isLoading }: { insights: AiInsight[]; isLoadin
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-sm font-medium text-muted-foreground">Insights</h2>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card">
         {isLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -267,7 +528,10 @@ function InsightsList({ insights, isLoading }: { insights: AiInsight[]; isLoadin
             {insights.map((insight) => {
               const Icon = insight.icon;
               return (
-                <div key={insight.id} className="flex items-start gap-3 p-4">
+                <div
+                  key={insight.id}
+                  className="flex items-start gap-3 p-4 transition-colors hover:bg-muted/30"
+                >
                   <Icon
                     className={cn("mt-0.5 size-4 shrink-0", SEVERITY_ICON[insight.severity])}
                     aria-hidden="true"
@@ -306,13 +570,6 @@ const STATUS_DOT: Record<string, string> = {
   DONE: "bg-emerald-500",
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  TODO: "To Do",
-  IN_PROGRESS: "In Progress",
-  REVIEW: "In Review",
-  DONE: "Done",
-};
-
 function timeAgo(date: string): string {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60_000);
@@ -330,7 +587,7 @@ function RecentWorkList({ tasks, isLoading }: { tasks: RecentTask[]; isLoading: 
   return (
     <div className="flex flex-col gap-3">
       <h2 className="text-sm font-medium text-muted-foreground">Recent work</h2>
-      <div className="rounded-lg border border-border bg-card">
+      <div className="rounded-xl border border-border bg-card">
         {isLoading ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -362,7 +619,7 @@ function RecentWorkList({ tasks, isLoading }: { tasks: RecentTask[]; isLoading: 
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{task.title}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {task.projectName} · {STATUS_LABEL[task.status] ?? task.status}
+                    {task.projectName} · {STATUS_LABELS[task.status] ?? task.status}
                   </p>
                 </div>
                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
