@@ -59,7 +59,7 @@ export function TaskCard({
           "bg-card/95 border-border",
           "shadow-sm",
           "transition-all duration-200",
-          !isOverlay && !isDragging && "hover:shadow-md hover:-translate-y-0.5 hover:border-foreground/15",
+          !isOverlay && !isDragging && "hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30",
           isOverlay && [
             "rotate-[1.5deg]",
             "shadow-2xl",
