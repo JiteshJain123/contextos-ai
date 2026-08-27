@@ -10,13 +10,14 @@
  */
 
 import { Router } from "express";
-import multer, { type StorageEngine } from "multer";
+import multer from "multer";
 import { extname } from "node:path";
 import { randomUUID } from "node:crypto";
-import type { Request } from "express";
+import type { Request, Response, NextFunction } from "express";
 
 import { aiRateLimiter } from "../../config/rate-limit.js";
 import { requireAuth } from "../auth/index.js";
+import { BadRequestError } from "../../lib/http-errors.js";
 import { ensureProjectDir } from "./document.service.js";
 import {
   listDocumentsController,
@@ -43,21 +44,22 @@ const ALLOWED_MIME_TYPES = new Set([
 
 // ── Multer disk storage ───────────────────────────────────────────────────────
 
-const storage: StorageEngine = multer.diskStorage({
-  destination: async (req: Request, _file, cb) => {
-    try {
-      const projectId = (Array.isArray(req.params.projectId) ? req.params.projectId[0] : req.params.projectId) ?? "unknown";
-      const dir = await ensureProjectDir(projectId);
-      cb(null, dir);
-    } catch (err) {
-      cb(err instanceof Error ? err : new Error(String(err)), "");
-    }
+const storage = multer.diskStorage({
+  destination: (req: Request, _file, cb) => {
+    const projectId =
+      (Array.isArray(req.params.projectId)
+        ? req.params.projectId[0]
+        : req.params.projectId) ?? "unknown";
+
+    ensureProjectDir(projectId)
+      .then((dir) => cb(null, dir))
+      .catch((err: unknown) =>
+        cb(err instanceof Error ? err : new Error(String(err)), ""),
+      );
   },
   filename: (_req, file, cb) => {
-    // Build a safe filename: uuid + original extension
     const ext = extname(file.originalname).toLowerCase() || ".bin";
-    const safe = `${randomUUID()}${ext}`;
-    cb(null, safe);
+    cb(null, `${randomUUID()}${ext}`);
   },
 });
 
@@ -80,6 +82,31 @@ const upload = multer({
   },
 });
 
+// ── Multer error → AppError bridge ───────────────────────────────────────────
+// Converts multer-specific errors (wrong type, size limit) into BadRequestError
+// so the error handler returns a well-formed 400 instead of a generic 500.
+
+function handleUpload(req: Request, res: Response, next: NextFunction): void {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (!err) {
+      next();
+      return;
+    }
+
+    if (err instanceof multer.MulterError) {
+      const message =
+        err.code === "LIMIT_FILE_SIZE"
+          ? "File too large. Maximum size is 10 MB."
+          : `Upload error: ${err.message}`;
+      next(new BadRequestError(message));
+    } else if (err instanceof Error) {
+      next(new BadRequestError(err.message));
+    } else {
+      next(new BadRequestError("Upload failed"));
+    }
+  });
+}
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 export const documentNestedRouter: Router = Router({ mergeParams: true });
@@ -87,7 +114,7 @@ documentNestedRouter.use(requireAuth);
 
 documentNestedRouter.get("/", listDocumentsController);
 documentNestedRouter.get("/:docId", getDocumentController);
-documentNestedRouter.post("/", upload.single("file"), uploadDocumentController);
+documentNestedRouter.post("/", handleUpload, uploadDocumentController);
 documentNestedRouter.post("/:docId/analyze", aiRateLimiter, analyzeDocumentController);
 documentNestedRouter.post("/:docId/import-tasks", importTasksController);
 documentNestedRouter.post("/:docId/generate-plan", aiRateLimiter, generatePlanController);
