@@ -223,7 +223,7 @@ function buildPlanPrompt(
 
 // ── Service factory ───────────────────────────────────────────────────────────
 
-export function createDocumentService(provider: AiProvider, geminiApiKey: string) {
+export function createDocumentService(provider: AiProvider) {
   return {
     /** Return all documents for a project the user owns. */
     async listDocuments(projectId: string, userId: string) {
@@ -302,7 +302,7 @@ export function createDocumentService(provider: AiProvider, geminiApiKey: string
       // verify definite assignment without the linter flagging a useless "".
       let extractedText: string;
       try {
-        const extraction = await extractDocumentText(filePath, doc.mimeType, geminiApiKey);
+        const extraction = await extractDocumentText(filePath, doc.mimeType);
         extractedText = extraction.text;
 
         logger.info(

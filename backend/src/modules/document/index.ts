@@ -16,11 +16,7 @@ import { createDocumentService } from "./document.service.js";
 
 export { documentNestedRouter } from "./document.routes.js";
 
-// ── Resolve Gemini API key (same pattern as ai module) ────────────────────────
-
-const geminiApiKey = process.env.GEMINI_API_KEY ?? "";
-
-export const documentServiceInstance = createDocumentService(aiProviderInstance, geminiApiKey);
+export const documentServiceInstance = createDocumentService(aiProviderInstance);
 
 // ── DTO shaping ───────────────────────────────────────────────────────────────
 

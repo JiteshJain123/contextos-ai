@@ -5,20 +5,17 @@
  *
  * Strategy by MIME type:
  *   text/plain | text/markdown          → direct UTF-8 decode
- *   application/pdf                     → Gemini Files API (no native dep needed)
+ *   application/pdf                     → pdf-parse (local, no API call)
  *   application/vnd.openxmlformats…     → mammoth (DOCX → plain text)
  *
  * Returns extracted raw text (may be empty string on failure).
  */
 
 import { readFile } from "node:fs/promises";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { GoogleAIFileManager } from "@google/generative-ai/server";
+import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 import { logger } from "../../lib/logger.js";
-
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,51 +40,18 @@ export function chunkText(text: string, maxChunkSize = 2000): string[] {
   return chunks.filter(Boolean);
 }
 
-// ── PDF extraction via Gemini Files API ──────────────────────────────────────
+// ── PDF extraction via pdf-parse (local, no API call) ────────────────────────
 
-async function extractPdfText(filePath: string, apiKey: string): Promise<string> {
-  const fileManager = new GoogleAIFileManager(apiKey);
-
-  let uploadedFile: Awaited<ReturnType<typeof fileManager.uploadFile>>;
+async function extractPdfText(filePath: string): Promise<string> {
   try {
-    uploadedFile = await fileManager.uploadFile(filePath, {
-      mimeType: "application/pdf",
-      displayName: "document.pdf",
-    });
-  } catch (err) {
-    logger.error({ err, filePath }, "document.processor: Gemini file upload failed");
-    throw new Error("PDF upload to Gemini failed", { cause: err });
-  }
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-
-  try {
-    const result = await model.generateContent([
-      {
-        fileData: {
-          fileUri: uploadedFile.file.uri,
-          mimeType: "application/pdf",
-        },
-      },
-      {
-        text: "Extract all text content from this PDF document. Return only the raw text content in reading order. Do not add summaries, headings, or commentary. Preserve paragraph breaks with double newlines.",
-      },
-    ]);
-
-    const text = result.response.text().trim();
-    logger.debug({ chars: text.length }, "document.processor: PDF text extracted");
+    const buffer = await readFile(filePath);
+    const data = await pdfParse(buffer);
+    const text = data.text.trim();
+    logger.debug({ chars: text.length, pages: data.numpages }, "document.processor: PDF text extracted");
     return text;
   } catch (err) {
-    logger.error({ err }, "document.processor: Gemini PDF text extraction failed");
+    logger.error({ err, filePath }, "document.processor: pdf-parse extraction failed");
     throw new Error("PDF text extraction failed", { cause: err });
-  } finally {
-    // Clean up the uploaded file from Gemini's temporary storage
-    try {
-      await fileManager.deleteFile(uploadedFile.file.name);
-    } catch {
-      // Non-fatal — Gemini auto-expires files after 48h anyway
-    }
   }
 }
 
@@ -119,19 +83,17 @@ export interface ExtractResult {
  *
  * @param filePath  Absolute path to the file on disk.
  * @param mimeType  MIME type of the file.
- * @param apiKey    Gemini API key (required for PDF extraction only).
  */
 export async function extractDocumentText(
   filePath: string,
   mimeType: string,
-  apiKey: string,
 ): Promise<ExtractResult> {
   let text: string;
 
   if (mimeType === "text/plain" || mimeType === "text/markdown") {
     text = await readFile(filePath, "utf-8");
   } else if (mimeType === "application/pdf") {
-    text = await extractPdfText(filePath, apiKey);
+    text = await extractPdfText(filePath);
   } else if (
     mimeType ===
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
